@@ -1,0 +1,77 @@
+---
+title: "Better Dataviz"
+author: "Peter Menzies"
+date: "8/18/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(here)
+library(directlabels)
+library(grid)
+```
+
+## Wrangling practice
+
+```{r}
+sf_emissions <- read_csv(here("data", "San_Francisco_Communitywide_Greenhouse_Gas_Inventory.csv"))
+
+sector_general_emissions <- sf_emissions %>% 
+  group_by(Sector_General) %>% 
+  summarize(emissions = sum(Emissions_mtCO2e, na.rm = TRUE))
+
+emissions_year_commodity <- sf_emissions %>% 
+  group_by(Calendar_Year, Commodity_Type) %>% 
+  summarize(emissions = sum(Emissions_mtCO2e, na.rm = TRUE))
+
+year_d2_emissions <- sf_emissions %>% 
+  filter(Calendar_Year >= 2005) %>% 
+  filter(str_detect(Sector_Detail2, "PG&E")) %>% 
+  select(Calendar_Year, Sector_Detail2, Emissions_mtCO2e)
+```
+
+## SF Emissions Viz
+
+```{r}
+ag_emissions <- sf_emissions %>% 
+  filter(Sector_General == "Agriculture")
+
+transport_emissions <- sf_emissions %>% 
+  filter(Calendar_Year >= 2014) %>% 
+  filter(Sector_General == "Transportation") %>% 
+  filter(str_detect(Sector_Detail2, "Bus")) %>% 
+  filter(Commodity_Type != "Diesel") %>% 
+  select(Sector_Detail1, Calendar_Year, Commodity_Type, Emissions_mtCO2e)
+
+transport_fuel_year <- transport_emissions %>% 
+  group_by(Commodity_Type, Calendar_Year) %>% 
+  summarize(emissions = sum(Emissions_mtCO2e)) %>% 
+  mutate(Commodity_Type = str_replace(Commodity_Type, pattern = "CNG", replacement = "Compressed Natural Gas"))
+
+
+sf_transport_emissions <- ggplot(transport_fuel_year, aes(x = Calendar_Year, y = emissions, group = Commodity_Type)) +
+  geom_line(aes(color = Commodity_Type), size = 1.5) +
+  labs(x = "Year", y = "CO2 Emissions (mt)", title = "Yearly CO2 emissions from three San Francisco public transportation \n fuel types from 2015 to 2019") +
+  guides(color = guide_legend(title = "Fuel type")) +
+  scale_color_manual(values = c("blue", "orange", "green3"),
+                     name = "Fuel:", 
+                     labels = c("CNG", "Gasoline", "Renewable Diesel")) +
+  theme(panel.background = element_blank(),
+        panel.grid.major.x = element_line(color = "white"),
+        panel.grid.minor = element_blank(),
+        axis.line.x = element_line(color = "gray"),
+        axis.line.y = element_line(color = "gray"))
+
+#  geom_text(data = subset(transport_fuel_year, Calendar_Year == 2019), aes(label = Commodity_Type, colour = Commodity_Type, x = Inf, y = emissions), show.legend = FALSE)
+
+sf_transport_emissions
+
+gt <- ggplotGrob(sf_transport_emissions)
+gt$layout$clip[gt$layout$name == "panel"] <- "off"
+grid.draw(gt)
+
+ggsave("sf_transport_emissions.png", plot = sf_transport_emissions)
+```
+

@@ -1,0 +1,44 @@
+---
+title: "Disgusting Data Viz"
+author: "Peter Menzies"
+date: "8/18/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(here)
+```
+
+```{r}
+space_launches <- read_csv(here("data", "space_launches.csv"))
+
+select_launches <- space_launches %>% 
+  select(launch_year, state_code)
+
+yearly_launches <- space_launches %>% 
+  group_by(launch_year, state_code) %>% 
+  summarize(yearly_launches = n())
+
+yearly_us <- yearly_launches %>% 
+  filter(state_code == "US")
+```
+
+```{r}
+ggplot(yearly_us, aes(x = launch_year, y = yearly_launches)) +
+  geom_polygon(fill = "yellow") + geom_tile(color = "purple", size = 4) +
+  geom_line(color = "cyan", size = 3) +
+  labs(x = "Year", y = "Number of Launches", title = "Number of Yearly US Space Launches") +
+    theme(panel.background = element_rect(color = "purple", size = 3, fill = "black"),
+        panel.grid.major.y = element_line(color = "orange"),
+        panel.grid.major.x = element_blank(),
+        axis.text.x = element_text(color = "blue"),
+        axis.text.y = element_text(color = "cyan"),
+        axis.title.x = element_text(color = "green"),
+        axis.title.y = element_text(color = "brown"),
+        text = element_text(size = 25, family="serif", color = "white"),
+        plot.background = element_rect(fill = "pink2"))
+  
+```
+
